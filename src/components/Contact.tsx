@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { Mail, Phone, MapPin, Linkedin, Send } from 'lucide-react';
 
@@ -6,8 +8,10 @@ export default function Contact() {
     name: '',
     email: '',
     subject: '',
-    message: ''
+    message: '',
+    company: '' // honeypot
   });
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -42,27 +46,54 @@ export default function Contact() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
+
+    // spam honeypot check
+    if (formData.company) return;
 
     setIsSubmitting(true);
     setSubmitStatus('idle');
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const res = await fetch('/contact/route.ts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          subject: formData.subject,
+          message: formData.message
+        })
+      });
 
-    setSubmitStatus('success');
-    setFormData({ name: '', email: '', subject: '', message: '' });
-    setIsSubmitting(false);
+      if (!res.ok) throw new Error('Failed');
 
-    setTimeout(() => {
-      setSubmitStatus('idle');
-    }, 5000);
+      setSubmitStatus('success');
+      setFormData({
+        name: '',
+        email: '',
+        subject: '',
+        message: '',
+        company: ''
+      });
+
+      setTimeout(() => setSubmitStatus('idle'), 5000);
+
+    } catch (err) {
+      console.error(err);
+      setSubmitStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
+
     setFormData(prev => ({ ...prev, [name]: value }));
+
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -143,6 +174,17 @@ export default function Contact() {
 
           <div>
             <form onSubmit={handleSubmit} className="space-y-6">
+
+              {/* hidden honeypot — no style impact */}
+              <input
+                type="text"
+                name="company"
+                value={formData.company}
+                onChange={handleChange}
+                className="hidden"
+                autoComplete="off"
+              />
+
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   Name
@@ -153,9 +195,8 @@ export default function Contact() {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 rounded-lg border ${
-                    errors.name ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'
-                  } bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors`}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.name ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'
+                    } bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors`}
                   placeholder="Your name"
                 />
                 {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
@@ -171,9 +212,8 @@ export default function Contact() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 rounded-lg border ${
-                    errors.email ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'
-                  } bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors`}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.email ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'
+                    } bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors`}
                   placeholder="your.email@example.com"
                 />
                 {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
@@ -189,9 +229,8 @@ export default function Contact() {
                   name="subject"
                   value={formData.subject}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 rounded-lg border ${
-                    errors.subject ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'
-                  } bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors`}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.subject ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'
+                    } bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors`}
                   placeholder="How can I help you?"
                 />
                 {errors.subject && <p className="mt-1 text-sm text-red-500">{errors.subject}</p>}
@@ -207,9 +246,8 @@ export default function Contact() {
                   value={formData.message}
                   onChange={handleChange}
                   rows={5}
-                  className={`w-full px-4 py-3 rounded-lg border ${
-                    errors.message ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'
-                  } bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors resize-none`}
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.message ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'
+                    } bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors resize-none`}
                   placeholder="Tell me about your project..."
                 />
                 {errors.message && <p className="mt-1 text-sm text-red-500">{errors.message}</p>}
@@ -218,6 +256,12 @@ export default function Contact() {
               {submitStatus === 'success' && (
                 <div className="p-4 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-lg">
                   Thank you for your message! I'll get back to you soon.
+                </div>
+              )}
+
+              {submitStatus === 'error' && (
+                <div className="p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-lg">
+                  Failed to send message. Please try again.
                 </div>
               )}
 
@@ -235,6 +279,7 @@ export default function Contact() {
                   </>
                 )}
               </button>
+
             </form>
           </div>
         </div>
